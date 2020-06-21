@@ -267,13 +267,13 @@ public:
 	virtual void		Unk_37(void);		// write esp format
 	virtual void		readOBNDSubRecord(ModInfo * modInfo);	// read esp format
 	virtual bool		Unk_39(void);
-	virtual bool		Unk_3A(void);
+	virtual bool		IsBoundObject(void);
 	virtual bool		Unk_3B(void);
-	virtual bool		Unk_3C(void);	// is REFR
-	virtual bool		Unk_3D(void);
+	virtual bool		GetIsReference(void);
+	virtual bool		IsArmorAddon(void);
 	virtual bool		Unk_3E(void);
 	virtual bool		Unk_3F(void);	// returnTrue for refr whose baseForm is a TESActorBase
-	virtual bool		Unk_40(void);	// Called from GetActorValue, might be is Actor (called also from AddItem and PlayGroup)
+	virtual bool		IsActor(void);
 	virtual UInt32		Unk_41(void);
 	virtual void		CopyFrom(const TESForm * form);
 	virtual bool		Compare(TESForm * form);
@@ -1289,17 +1289,17 @@ public:
 	ActorValueOwner();
 	~ActorValueOwner();
 
-	virtual UInt32	Fn_00(UInt32 actorValueCode);	// GetBaseActorValue (used from Eval) result in EAX
-	virtual float	Fn_01(UInt32 actorValueCode);	// GetBaseActorValue internal, result in st
-	virtual UInt32	Fn_02(UInt32 actorValueCode);	// GetActorValue internal, result in EAX
-	virtual float	Fn_03(UInt32 actorValueCode);	// GetActorValue (used from Eval) result in EAX
-	virtual float	Fn_04(UInt32 actorValueCode);	// GetBaseActorValue04 (internal) result in st
-	virtual float	Fn_05(void * arg);
-	virtual float	Fn_06(UInt32 actorValueCode);	// GetDamageActorValue or GetModifiedActorValue		called from Fn_08, result in st, added to Fn_01
-	virtual UInt32	Fn_07(UInt32 actorValueCode);	// Manipulate GetPermanentActorValue, maybe convert to integer.
-	virtual float	Fn_08(UInt32 actorValueCode);	// GetPermanentActorValue (used from Eval) result in EAX
-	virtual Actor*	Fn_09(void);					// GetActorBase (= this - 0x100) or GetActorBase (= this - 0x0A4)
-	virtual UInt16	Fn_0A(void);					// GetLevel (from ActorBase)
+	virtual UInt32	GetBaseActorValue(UInt32 avCode);		// GetBaseActorValue (used from Eval) result in EAX
+	virtual float	GetBaseAVFloat(UInt32 avCode);			// GetBaseActorValue internal, result in st
+	virtual float	Fn_02(UInt32 avCode);					// GetActorValue internal, result in EAX
+	virtual float	GetActorValue(UInt32 avCode);			// GetActorValue (used from Eval) result in EAX
+	virtual float	Fn_04(UInt32 avCode);					// GetBaseActorValue04 (internal) result in st
+	virtual float	GetActorValueDamage(UInt32 avCode);
+	virtual float	Fn_06(UInt32 avCode);					// GetDamageActorValue or GetModifiedActorValue		called from Fn_08, result in st, added to Fn_01
+	virtual UInt32	Fn_07(UInt32 avCode);					// Manipulate GetPermanentActorValue, maybe convert to integer.
+	virtual float	GetPermanentActorValue(UInt32 avCode);	// GetPermanentActorValue (used from Eval) result in EAX
+	virtual Actor*	Fn_09(void);							// GetActorBase (= this - 0x100) or GetActorBase (= this - 0x0A4)
+	virtual UInt16	GetLevel();								// GetLevel (from ActorBase)
 
 	// SkillsCurrentValue[14] at index 20
 };
@@ -1312,22 +1312,23 @@ public:
 	CachedValuesOwner();
 	~CachedValuesOwner();
 
-	virtual float	Fn_00(void);
-	virtual float	Fn_01(void);
-	virtual float	Fn_02(void);
-	virtual float	Fn_03(void);
-	virtual float	Fn_04(void);
-	virtual float	Fn_05(void);
-	virtual float	Fn_06(void);
-	virtual float	Fn_07(void);
-	virtual float	Fn_08(void);
-	virtual float	Fn_09(void);
-	virtual float	Fn_0A(void);
-	virtual UInt32	Fn_0B(void);
-	virtual UInt32	Fn_0C(void);
-	virtual float	Fn_0D(void);
-	virtual float	Fn_0E(void);
-	virtual bool	Fn_0F(void);
+	virtual float	GetRadius(void); // computed from the BSBounds
+	virtual float	GetWidthX(void);
+	virtual float	GetWidthY(void);
+	virtual float	GetHeight(void);
+	virtual float	GetDPS(void);
+	virtual float	GetMedicineSkillMult(void);
+	virtual float	GetSurvivalSkillMult(void);
+	virtual float	GetParalysis(void);
+	virtual float	GetHealRate(void);
+	virtual float	GetFatigueReturnRate(void); // calculated the same as HealRate
+	virtual float	GetPerceptionCondition(void);
+	virtual UInt32	GetEyeHeight(void);
+	virtual UInt32	GetUnkShouldAttack(void);
+	virtual float	GetAssistance(void);
+	virtual float	GetWalkSpeedMult(void);
+	virtual float	GetRunSpeedMult(void);
+	virtual bool	GetHasNoCrippledLimbs(void);
 };
 
 STATIC_ASSERT(sizeof(CachedValuesOwner) == 0x004);
@@ -1487,20 +1488,24 @@ public:
 
 	struct Target
 	{
-		UInt8							byt000;				// 000
-		UInt8							fill[3];			// 001
-		tList<Condition*>				conditions;			// 004
-		TESObjectREFR*					target;				// 00C
-		BSSimpleArray<ParentSpaceNode>	parentSpaceNodes;	// 010 - The four fields coud be a struct
-		BSSimpleArray<TeleportLink>		teleportLinks;		// 020
-		UInt32							unk030;				// 030
-		UInt32							unk034;				// 034
+		struct Data
+		{
+			BSSimpleArray<ParentSpaceNode>	parentSpaceNodes;	// 00
+			BSSimpleArray<TeleportLink>		teleportLinks;		// 10
+			UInt32							unk20[6];			// 20
+		};
+
+		UInt8							byte00;			// 00
+		UInt8							pad01[3];		// 01
+		ConditionList					conditions;		// 04
+		TESObjectREFR					*target;		// 0C
+		Data							data;			// 10
 	};
 
 	UInt32			objectiveId;	// 004 Objective Index in the GECK
 	String			displayText;	// 008
 	TESQuest*		quest;			// 010
-	tList<Target*>	targets;		// 014
+	tList<Target>		targets;		// 014
 	UInt32			unk01C;			// 01C
 	UInt32			status;			// 020	bit0 = displayed, bit 1 = completed. 1 and 3 significant. If setting it to 3, quest flags bit1 will be set also.
 
@@ -1564,10 +1569,10 @@ public:
 	TESModelAnim		anim;			// 018
 	tList<Condition*>	conditions;		// 030
 	Data				data;			// 038
-	UInt32				unk040;			// 040	NiFormArray, contains all idle anims in path if eIFgf_flagUnknown is set
+	BSSimpleArray<TESIdleForm*>	*children;		// 040	NiFormArray, contains all idle anims in path if eIFgf_flagUnknown is set
 	TESIdleForm			* parent;		// 044
 	TESIdleForm			* previous;		// 048
-	String				str04C;			// 04C
+	String				editorID;		// 04C
 };
 
 struct TESTopicInfoResponse
@@ -1619,14 +1624,14 @@ public:
 	UInt32				speaker;			// 3C
 	UInt32				actorValueOrPerk;	// 40
 	UInt32				speechChallenge;	// 44
-	UInt32				unk48;				// 48
+	TESQuest			*quest;				// 48
 	UInt32				modInfoFileOffset;	// 4C	during LoadForm
 };
 
 typedef NiTArray<TESTopicInfo*> TopicInfoArray;
 typedef void* INFO_LINK_ELEMENT;
 
-// 40
+// 48
 class TESTopic : public TESForm
 {
 public:
@@ -1653,6 +1658,7 @@ public:
 	String			unk34;			// 34	TDUM
 	UInt16			unk3C;			// 3C	XIDX
 	UInt16			unk3E;			// 3E
+	String			editorIDstr;	// 40
 };
 
 STATIC_ASSERT(offsetof(TESTopic, fullName) == 0x018);
@@ -2059,19 +2065,60 @@ public:
 };
 STATIC_ASSERT(sizeof(TESSound) == 0x68);
 
-// 3C
+// 54
 class BGSAcousticSpace : public TESBoundObject
 {
 public:
 	BGSAcousticSpace();
 	~BGSAcousticSpace();
 
-	UInt32	unk30;	// 30
-	UInt32	unk34;	// 34
-	UInt32	unk38;	// 38
-};
+	enum EnvironmentTypes
+	{
+		kNone,
+		kDefault,
+		kGeneric,
+		kPaddedCell,
+		kRoom,
+		kBathroom,
+		kLivingroom,
+		kStoneRoom,
+		kAuditorium,
+		kConcerthall,
+		kCave,
+		kArena,
+		kHangar,
+		kCarpetedHallway,
+		kHallway,
+		kStoneCorridor,
+		kAlley,
+		kForest,
+		kCity,
+		kMountains,
+		kQuarry,
+		kPlain,
+		kParkinglot,
+		kSewerpipe,
+		kUnderwater,
+		kSmallRoom,
+		kMediumRoom,
+		kLargeRoom,
+		kMediumHall,
+		kLargeHall,
+		kPlate
+	};
 
-STATIC_ASSERT(sizeof(BGSAcousticSpace) == 0x3C);
+	UInt8		isInterior;			// 30
+	UInt8		pad31[3];			// 31
+	TESSound	*dawnSound;			// 34
+	TESSound	*noonSound;			// 38
+	TESSound	*duskSound;			// 3C
+	TESSound	*nightSound;		// 40
+	TESSound	*wallaSound;		// 44
+	TESRegion	*region;			// 48
+	UInt32		environmentType;	// 4C
+	UInt32		wallaTriggerCount;	// 50
+};
+STATIC_ASSERT(sizeof(BGSAcousticSpace) == 0x54);
 
 // 60
 class TESSkill : public TESForm
@@ -2286,8 +2333,17 @@ public:
 
 STATIC_ASSERT(sizeof(TESObjectACTI) == 0x90);
 
-// BGSTalkingActivator (8C)
-class BGSTalkingActivator;
+// 98
+class BGSTalkingActivator : public TESObjectACTI
+{
+public:
+	BGSTalkingActivator();
+	~BGSTalkingActivator();
+
+	Actor				*talkingActor;	// 90
+	BGSVoiceType		*voiceType;		// 94
+};
+STATIC_ASSERT(sizeof(BGSTalkingActivator) == 0x98);
 
 class BGSNote;
 
@@ -2321,13 +2377,15 @@ public:
 
 	struct MenuEntry
 	{
-		String				entryText;
-		String				resultText;
-		UInt8				entryFlags;
-		BGSNote*			displayNote;
-		BGSTerminal*		subMenu;
-		ScriptEventList*	scriptEventList;
-		tList<Condition*>	conditions;	
+		String				entryText;		// 00
+		String				resultText;		// 08
+		//Script				resScript;		// 10
+		UInt8				_script[54];
+		ConditionList		conditions;		// 64
+		BGSNote				*displayNote;	// 6C
+		BGSTerminal			*subMenu;		// 70
+		UInt8				byte74;			// 74
+		UInt8				pad75[3];		// 75
 	};
 
 	String				desc;			// 090	DESC
@@ -2355,19 +2413,45 @@ public:
 	BGSEquipType				equipType;		// 154
 	BGSRepairItemList			repairItemList;	// 15C
 	BGSBipedModelList			bipedModelList; // 164
-	BGSPickupPutdownSounds		unk16C;			// 16C
+	BGSPickupPutdownSounds		pickupPutdownSounds;			// 16C
 	UInt16						armorRating;	// 178
 	UInt16						modifiesVoice;	// 17A
 	float						damageThreshold;// 17C
 	UInt32						armorFlags;		// 180
-	UInt32						unk184;			// 184
-	// 180
+	UInt32						unk184;					// 184
+	union												// 188
+	{
+		TESObjectARMO			*audioTemplate;
+		tList<MovementSound>	*movementSounds;
+	};
+	UInt8						overrideSounds;			// 18C
+	UInt8						pad18D[3];				// 18D
 };
-STATIC_ASSERT(sizeof(TESObjectARMO) == 0x188);
+STATIC_ASSERT(sizeof(TESObjectARMO) == 0x190);
 STATIC_ASSERT(offsetof(TESObjectARMO, damageThreshold) == 0x17C);
 
-// TESObjectBOOK (C4)
-class TESObjectBOOK;
+// C4
+class TESObjectBOOK : public TESBoundObject
+{
+public:
+	TESObjectBOOK();
+	~TESObjectBOOK();
+
+	TESFullName					fullName;		// 30
+	TESModelTextureSwap			model;			// 3C
+	TESIcon						icon;			// 5C
+	TESScriptableForm			scriptable;		// 68
+	TESEnchantableForm			enchantable;	// 74
+	TESValueForm				value;			// 84
+	TESWeightForm				weight;			// 8C
+	TESDescription				description;	// 94
+	BGSDestructibleObjectForm	destuctible;	// 9C
+	BGSMessageIcon				messageIcon;	// A4
+	BGSPickupPutdownSounds		sounds;			// B4
+
+	UInt32						unkC0;			// C0
+};
+STATIC_ASSERT(sizeof(TESObjectBOOK) == 0xC4);
 
 // 154
 class TESObjectCLOT : public TESBoundObject
@@ -2483,15 +2567,26 @@ public:
 };
 STATIC_ASSERT(sizeof(TESObjectLIGH) == 0x0C8);
 
-// TESObjectMISC (A8)
+// AC
 class TESObjectMISC : public TESBoundObject
 {
 public:
 	TESObjectMISC();
 	~TESObjectMISC();
 
-	UInt32	unk30[30];
+	TESFullName					fullName;		// 30
+	TESModelTextureSwap			modelSwap;		// 3C
+	TESIcon						icon;			// 5C
+	TESScriptableForm			scriptable;		// 68
+	TESValueForm				value;			// 74
+	TESWeightForm				weight;			// 7C
+	BGSDestructibleObjectForm	destructible;	// 84
+	BGSMessageIcon				messageIcon;	// 8C
+	BGSPickupPutdownSounds		pickupPutdown;	// 9C
+
+	UInt32						unkA8;			// A8
 };
+STATIC_ASSERT(sizeof(TESObjectMISC) == 0xAC);
 
 // 50
 class TESObjectSTAT : public TESBoundObject
@@ -2818,12 +2913,11 @@ public:
 	TESObjectIMOD		* itemMod1;			// 350
 	TESObjectIMOD		* itemMod2;			// 354
 	TESObjectIMOD		* itemMod3;			// 358
-	UInt32				unk35C;				// 35C
-	UInt32				unk360;				// 360
+	String				embeddedNodeName;	// 35C
 	UInt32				soundLevel;			// 364
 	UInt32				unk368;				// 368
 	UInt32				unk36C;				// 36C
-	UInt32				unk370;				// 370
+	SpellItem			*VATSEffect;		// 370
 	UInt32				unk374;				// 374
 	UInt32				unk378;				// 378
 	UInt32				unk37C;				// 37C
