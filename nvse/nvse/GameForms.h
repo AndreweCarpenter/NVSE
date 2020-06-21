@@ -2664,6 +2664,8 @@ public:
 		eFlag_BurstShot					= 0x200,
 		eFlag_RumbleAlternate			= 0x400,
 		eFlag_LongBurst					= 0x800,
+		eFlag_ScopeNightVision			= 0x1000,
+		eFlag_ScopeFromMod				= 0x2000
 	};
 
 	enum EEmbedWeapAV {
@@ -2959,6 +2961,7 @@ struct ValidBip01Names {	// somehow descend from NiNodeArray
 	OptionalBone	bones[5];		// 004
 	Data			unk002C[20];	// 02C indexed by the EquipSlot
 	Data			unk016C[20];	// 16C indexed by the EquipSlot
+	UInt32			unk2AC;		// 2AC
 	Character		* character;	// 2B0
 
 	MEMBER_FN_PREFIX(ValidBip01Names);
@@ -3667,12 +3670,28 @@ public:
 	TESScriptableForm			scriptable;			// 018
 	TESIcon						icon;				// 024
 	TESFullName					fullName;			// 030
+	
+	// 74
+	struct LogEntry
+	{
+		UInt32				unk00;			// 00
+		ConditionList		conditions;		// 04
+		//Script				resScript;		// 0C
+		UInt8				_script[54];
+		UInt32				unk60;			// 60
+		UInt8				byte64;			// 64
+		UInt8				byte65;			// 65
+		UInt8				pad66[2];		// 66
+		UInt32				*date;			// 68	ptr to 4 byte struct storing day/month/year
+		TESQuest			*quest;			// 6C
+		UInt32				unk70;			// 70
+	};
 
 	struct StageInfo {
 		UInt8			stage;	// 00 stageID
 		UInt8			unk001;	// 01 status ?
 		UInt8			pad[2];	// 02
-		tList<void*>	unk004;	// 04 log entries
+		tList<LogEntry>		logEntries;// 04 log entries
 	};	// 00C
 
 	union LocalVariableOrObjectivePtr
@@ -3725,6 +3744,118 @@ public:
 	~TESPatrolPackageData();
 
 	UInt8	patrolFlags;
+};
+
+// 04
+class ActorPackageData
+{
+public:
+	ActorPackageData();
+	~ActorPackageData();
+
+	virtual void	Destroy(bool doFree);
+	virtual void	Unk_01(TESObjectREFR *refr);
+	virtual UInt32	GetPackageType();
+	virtual void	SaveGame(BGSSaveLoadGame *saveLoadGame);
+	virtual void	LoadGame(BGSSaveLoadGame *saveLoadGame);
+	virtual void	Unk_05(UInt32 arg);
+};
+
+// 64
+class SandBoxActorPackageData : public ActorPackageData
+{
+public:
+	SandBoxActorPackageData();
+	~SandBoxActorPackageData();
+
+	struct SandboxChoice
+	{
+		TESObjectREFR	*markerRef;		// 00
+		UInt32			unk04;			// 04
+		UInt32			unk08;			// 08
+		UInt32			unk0C;			// 0C
+	};
+
+	UInt32							unk04;		// 04
+	UInt32							unk08;		// 08
+	float							flt0C;		// 0C
+	UInt32							unk10;		// 10
+	float							flt14;		// 14
+	float							flt18;		// 18
+	UInt32							unk1C;		// 1C
+	BSSimpleArray<SandboxChoice>	choices;	// 20
+	UInt32							unk30;		// 30
+	UInt8							byte34;		// 34
+	UInt8							byte35;		// 35
+	UInt8							byte36;		// 36
+	UInt8							byte37;		// 37
+	UInt32							unk38;		// 38
+	UInt32							unk3C;		// 3C
+	UInt8							byte40;		// 40
+	UInt8							pad41[3];	// 41
+	UInt32							unk44;		// 44
+	UInt32							unk48;		// 48
+	UInt32							unk4C;		// 4C
+	float							flt50;		// 50
+	float							flt54;		// 54
+	UInt32							unk58;		// 58
+	UInt8							byte5C[6];	// 5C
+	UInt8							pad62[2];	// 62
+};
+STATIC_ASSERT(sizeof(SandBoxActorPackageData) == 0x64);
+
+// 18
+class EscortActorPackageData : public ActorPackageData
+{
+public:
+	EscortActorPackageData();
+	~EscortActorPackageData();
+
+	UInt32				unk04;		// 04
+	UInt32				unk08;		// 08
+	UInt32				unk0C;		// 0C
+	tList<void>			list10;		// 10
+};
+
+// 14
+class GuardActorPackageData : public ActorPackageData
+{
+public:
+	GuardActorPackageData();
+	~GuardActorPackageData();
+
+	UInt32				unk04;		// 04
+	UInt32				unk08;		// 08
+	UInt32				unk0C;		// 0C
+	float				flt10;		// 10
+};
+
+// 38
+class PatrolActorPackageData : public ActorPackageData
+{
+public:
+	PatrolActorPackageData();
+	~PatrolActorPackageData();
+
+	UInt32							unk04;		// 04
+	UInt32							unk08;		// 08
+	UInt32							unk0C;		// 0C
+	UInt32							unk10;		// 10
+	UInt32							unk14;		// 14
+	UInt32							unk18;		// 18
+	BSSimpleArray<TESObjectREFR>	pointRefs;	// 1C
+	UInt32							unk2C[3];	// 2C
+};
+STATIC_ASSERT(sizeof(PatrolActorPackageData) == 0x38);
+
+// 08
+class UseWeaponActorPackageData : public ActorPackageData
+{
+public:
+	UseWeaponActorPackageData();
+	~UseWeaponActorPackageData();
+
+	UInt32				unk04;		// 04
 };
 
 // TESPackage (80) class definition duplicated from Oblivion. Enum not updated
@@ -4010,6 +4141,15 @@ public:
 		kProcedure_MAX						// 0x33
 	};
 
+	// 10
+	struct PackageEvent
+	{
+		TESIdleForm		*idleForm;	// 00
+		Script			*resScript;	// 04
+		TESTopic		*topic;		// 08
+		UInt32			unk0C;		// 0C
+	};
+
 	// In DialoguePackage, there are 0x58 virtual functions (including 0x4E from TESForm)
 
 	UInt32			procedureArrayIndex;	// 018 index into array of array of eProcedure terminated by 0x2C. 
@@ -4024,10 +4164,12 @@ public:
 	TargetData		*	target;				// 030	target ?
 	UInt32				unk034;				// 034	idles
 	PackageTime			time;				// 038
-	UInt32 unk040[(0x80 - 0x40) >> 2];		// 040	040 is a tList of Condition, 7C is an Interlocked counter
-		//	048 is a DWord CombatStyle, 
-		//	04C, 05C and 06C are the same 4 DWord struct onBegin onEnd onChange, { TESIdle* idle; EmbeddedScript* script; Topic* topic; UInt32 unk0C; }
-		//	07C is a DWord
+	ConditionList		conditions;				// 40
+	TESCombatStyle		*combatStyle;			// 48
+	PackageEvent		onBegin;				// 4C
+	PackageEvent		onEnd;					// 5C
+	PackageEvent		onChange;				// 6C
+	UInt32			unk7C;					// 7C
 
 	void SetTarget(TESObjectREFR* refr);
 	void SetTarget(TESForm* baseForm, UInt32 count);
@@ -4338,17 +4480,27 @@ public:
 
 STATIC_ASSERT(sizeof(TESRecipe) == 0x5C);
 
-// TESLoadScreen (3C)
+// 40
 class TESLoadScreen : public TESForm
 {
 public:
 	TESLoadScreen();
 	~TESLoadScreen();
 
-	TESTexture		texture;			// 018
-	TESDescription	description;		// 024
-	UInt32	unk2C[(0x3C - 0x2C) >> 2];	// 02C
+	struct Location
+	{
+		UInt32		interiorRefID;	// 00	Used if cell is an interior.
+		UInt32		worldRefID;		// 04	Used if cell is an exterior, with grid coords
+		Coordinate	gridCoords;		// 08
+	};
+
+	TESTexture			texture;		// 18
+	TESDescription		description;	// 24	Appears to be unused
+	tList<Location>		locations;		// 2C
+	TESLoadScreenType	*type;			// 34
+	String				screenText;		// 38
 };
+STATIC_ASSERT(sizeof(TESLoadScreen) == 0x40);
 
 // TESLevSpell (44)
 class TESLevSpell;
@@ -4446,29 +4598,131 @@ class BGSDebris : public TESForm
 	UInt32	unk020;
 };
 
-// TESImageSpace (B0)
+// B0
 class TESImageSpace : public TESForm
 {
 public:
 	TESImageSpace();
 	~TESImageSpace();
 
-	UInt32 unk018[(0xB0-0x18) >> 2];		// 018
+	float		traitValues[33];	// 18
+	// 00:	HDR: Eye Adapt Speed
+	// 01:	HDR: Blur Radius
+	// 02:	HDR: Blur Passes
+	// 03:	HDR: Emissive Mult
+	// 04:	HDR: Target LUM
+	// 05:	HDR: Upper LUM Clamp
+	// 06:	HDR: Bright Scale
+	// 07:	HDR: Bright Clamp
+	// 08:	HDR: LUM Ramp No Tex
+	// 09:	HDR: LUM Ramp Min
+	// 10:	HDR: LUM Ramp Max
+	// 11:	HDR: Sunlight Dimmer
+	// 12:	HDR: Grass Dimmer
+	// 13:	HDR: Tree Dimmer
+	// 14:	HDR: Skin Dimmer
+	// 15:	Bloom: Blur Radius
+	// 16:	Bloom: Alpha Mult Interior
+	// 17:	Bloom: Alpha Mult Exterior
+	// 18:	Get Hit: Blur Radius
+	// 19:	Get Hit: Blur Damping Contrast
+	// 20:	Get Hit: Damping Contrast
+	// 21:	Night Eye: Tint: Red
+	// 22:	Night Eye: Tint: Green
+	// 23:	Night Eye: Tint: Blue
+	// 24:	Night Eye: Brightness
+	// 25:	Cinematic: Saturation: Value
+	// 26:	Cinematic: Contrast: Avg Lum Value
+	// 27:	Cinematic: Contrast: Value
+	// 28:	Cinematic: Brightness: Value
+	// 29:	Cinematic: Tint: Red
+	// 30:	Cinematic: Tint: Green
+	// 31:	Cinematic: Tint: Blue
+	// 32:	Cinematic: Tint: Value
+	UInt32		unk9C[5];			// 9C
 };
-
 STATIC_ASSERT(sizeof(TESImageSpace) == 0xB0);
 
-// TESImageSpaceModifier (728)
+// 730
 class TESImageSpaceModifier : public TESForm
 {
 public:
 	TESImageSpaceModifier();
 	~TESImageSpaceModifier();
 
-	UInt32 unk018[(0x728-0x18) >> 2];		// 018
+	TESSound				*outroSound;		// 018
+	TESSound				*introSound;		// 01C
+	UInt8					animable;			// 020
+	UInt8					pad021[3];			// 021
+	float					duration;			// 024
+	UInt32					unk028[49];			// 028
+	float					radialBlurCentreX;	// 0EC
+	float					radialBlurCentreY;	// 0F0
+	UInt32					unk0F4[3];			// 0F4
+	UInt8					useTarget;			// 100
+	UInt8					pad101[3];			// 101
+	UInt32					unk104[4];			// 104
+	NiFloatInterpolator		fltIntrpl1[44];		// 114
+	NiColorInterpolator		clrIntrpl[2];		// 534
+	NiFloatInterpolator		fltIntrpl2[9];		// 57C
+	FloatData				*data654[44];		// 654
+	// 00:	HDR: Eye Adapt Speed (Multiply)
+	// 01:	HDR: Eye Adapt Speed (Add)
+	// 02:	HDR: Blur Radius (Multiply)
+	// 03:	HDR: Blur Radius (Add)
+	// 04:	HDR: Skin Dimmer (Multiply)
+	// 05:	HDR: Skin Dimmer (Add)
+	// 06:	HDR: Emissive Mult (Multiply)
+	// 07:	HDR: Emissive Mult (Add)
+	// 08:	HDR: Target LUM (Multiply)
+	// 09:	HDR: Target LUM (Add)
+	// 10:	HDR: Upper LUM Clamp (Multiply)
+	// 11:	HDR: Upper LUM Clamp (Add)
+	// 12:	HDR: Bright Scale (Multiply)
+	// 13:	HDR: Bright Scale (Add)
+	// 14:	HDR: Bright Clamp (Multiply)
+	// 15:	HDR: Bright Clamp (Add)
+	// 16:	HDR: LUM Ramp No Tex (Multiply)
+	// 17:	HDR: LUM Ramp No Tex (Add)
+	// 18:	HDR: LUM Ramp Min (Multiply)
+	// 19:	HDR: LUM Ramp Min (Add)
+	// 20:	HDR: LUM Ramp Max (Multiply)
+	// 21:	HDR: LUM Ramp Max (Add)
+	// 22:	HDR: Sunlight Dimmer (Multiply)
+	// 23:	HDR: Sunlight Dimmer (Add)
+	// 24:	HDR: Grass Dimmer (Multiply)
+	// 25:	HDR: Grass Dimmer (Add)
+	// 26:	HDR: Tree Dimmer (Multiply)
+	// 27:	HDR: Tree Dimmer (Add)
+	// 28:	Bloom: Blur Radius (Multiply)
+	// 29:	Bloom: Blur Radius (Add)
+	// 30:	Bloom: Alpha Mult Interior (Multiply)
+	// 31:	Bloom: Alpha Mult Interior (Add)
+	// 32:	Bloom: Alpha Mult Exterior (Multiply)
+	// 33:	Bloom: Alpha Mult Exterior (Add)
+	// 34:	Cinematic: Saturation (Multiply)
+	// 35:	Cinematic: Saturation (Add)
+	// 36:	Cinematic: Contrast (Multiply)
+	// 37:	Cinematic: Contrast (Add)
+	// 38:	Cinematic: Contrast Avg Lum (Multiply)
+	// 39:	Cinematic: Contrast Avg Lum (Add)
+	// 40:	Cinematic: Brightness (Multiply)
+	// 41:	Cinematic: Brightness (Add)
+	// 42:	Blur: Blur Radius
+	// 43:	Double Vision: Strength
+	ColorData				*data704[2];		// 704
+	FloatData				*data70C[9];		// 70C
+	// 00:	Radial Blur: Strength
+	// 01:	Radial Blur: Rampup
+	// 02:	Radial Blur: Up Start
+	// 03:	Radial Blur: Rampdown
+	// 04:	Radial Blur: Down Start
+	// 05:	Depth of Field: Strength
+	// 06:	Depth of Field: Distance
+	// 07:	Depth of Field: Range
+	// 08:	Full-Screen Motion Blur: Strength
 };
-
-STATIC_ASSERT(sizeof(TESImageSpaceModifier) == 0x728);
+STATIC_ASSERT(sizeof(TESImageSpaceModifier) == 0x730);
 
 // 24
 class BGSListForm : public TESForm
@@ -4804,15 +5058,48 @@ extern const ActorValueInfo** ActorValueInfoPointerArray;
 typedef ActorValueInfo* (* _GetActorValueInfo)(UInt32 actorValueCode);
 extern const _GetActorValueInfo GetActorValueInfo;
 
-// BGSRadiationStage (20)
+// 20
 class BGSRadiationStage : public TESForm
 {
 public:
 	BGSRadiationStage();
 	~BGSRadiationStage();
 
-	UInt32	unk018;			// 018
-	UInt32	unk01C;			// 01C
+	UInt32		threshold;	// 18
+	SpellItem	*effect;	// 1C
+};
+
+// 20
+class BGSDehydrationStage : public TESForm
+{
+public:
+	BGSDehydrationStage();
+	~BGSDehydrationStage();
+
+	UInt32		threshold;	// 18
+	SpellItem	*effect;	// 1C
+};
+
+// 20
+class BGSHungerStage : public TESForm
+{
+public:
+	BGSHungerStage();
+	~BGSHungerStage();
+
+	UInt32		threshold;	// 18
+	SpellItem	*effect;	// 1C
+};
+
+// 20
+class BGSSleepDeprevationStage : public TESForm
+{
+public:
+	BGSSleepDeprevationStage();
+	~BGSSleepDeprevationStage();
+
+	UInt32		threshold;	// 18
+	SpellItem	*effect;	// 1C
 };
 
 // BGSCameraShot (78)
@@ -4901,37 +5188,22 @@ public:
 	BGSImpactDataSet();
 	~BGSImpactDataSet();
 
-	BGSPreloadable	preloadable;		// 018
-	UInt32 unk01C[(0x4C - 0x1C) >> 2];	// 01C
+	BGSPreloadable	preloadable;		// 18
+	BGSImpactData	*impactDatas[12];	// 1C
 };
 
 STATIC_ASSERT(offsetof(BGSImpactDataSet, preloadable) == 0x018);
 STATIC_ASSERT(sizeof(BGSImpactDataSet) == 0x4C);
 
-// TESObjectARMA (180)
-class TESObjectARMA : public TESBoundObject
+// 190
+class TESObjectARMA : public TESObjectARMO
 {
 public:
 	TESObjectARMA();
-	~TESObjectARMA();
-
-	TESFullName					fullName;				// 030
-	TESScriptableForm			scriptable;				// 03C
-	TESEnchantableForm			enchantable;			// 048
-	TESValueForm				value;					// 058
-	TESWeightForm				weight;					// 060
-	TESHealthForm				health;					// 068
-	TESBipedModelForm			bipedModelForm;			// 070
-	BGSDestructibleObjectForm	destructible;			// 14C
-	BGSEquipType				equipType;				// 154
-	BGSRepairItemList			repairList;				// 15C
-	BGSBipedModelList			bipedModelList;			// 164
-	BGSPickupPutdownSounds		pickupPutdownSounds;	// 16C
-	UInt32						unk178;					// 178			
-	UInt32						unk17C;					// 17C
+	~TESObjectARMA();		
 };
 
-STATIC_ASSERT(sizeof(TESObjectARMA) == 0x180);
+STATIC_ASSERT(sizeof(TESObjectARMA) == 0x190);
 
 // BGSEncounterZone (30)
 class BGSEncounterZone : public TESForm
@@ -4978,14 +5250,24 @@ public:
 
 STATIC_ASSERT(sizeof(BGSRagdoll) == 0x148);
 
-// BGSLightingTemplate (44)
+// 44
 class BGSLightingTemplate : public TESForm
 {
 public:
 	BGSLightingTemplate();
 	~BGSLightingTemplate();
 
-	UInt32	unk018[(0x44 - 0x18) >> 2];
+	UInt32			ambientRGB;			// 18
+	UInt32			directionalRGB;		// 1C
+	UInt32			fogRGB;				// 20
+	float			fogNear;			// 24
+	float			fogFar;				// 28
+	UInt32			directionalXY;		// 2C
+	UInt32			directionalZ;		// 30
+	float			directionalFade;	// 34
+	float			fogClipDist;		// 38
+	float			fogPower;			// 3C
+	TESObjectCELL	*getValuesFrom;		// 40
 };
 
 STATIC_ASSERT(sizeof(BGSLightingTemplate) == 0x44);
